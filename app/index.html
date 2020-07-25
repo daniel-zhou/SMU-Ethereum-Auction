@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dices battle ground</title>
+    <meta name="description" content="Dices example code">
+    <meta name="author" content="Suen Chun Hui">
+    <!-- Latest compiled and minified CSS from https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css -->
+    <link rel="stylesheet" href="bootstrap-4.4.1.min.css">
+    <!-- jQuery library from https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js -->
+    <script src="jquery-3.4.1.min.js"></script>
+    <!-- Latest compiled JavaScript from https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js-->
+    <script src="bootstrap-4.4.1.min.js"></script>
+  </head>
+  <body>
+    <h1>Dice battleground and marketplace example</h1>
+    <br/>
+    <div class="container-fluid">
+      <h2>Token balance: <div id="token_bal" style="display: inline-block;"></div> DCT</h2><br/>
+    	<div class="row">
+    		<div class="col-md-12">
+    			 <h2>My dices <a href="#" class="btn btn-primary" onclick="addDiceDiag();">Add Dice</a></h2>
+
+           <div class="card-columns border bg-light" id="myDiceList" style="min-height:50px !important;"></div>
+           <br/>
+           <h2>Battle Ground</h2>
+           <div class="card-columns border bg-light" id="battleList" style="min-height:50px !important;"></div>
+           <br/>
+           <h2>Market Place</h2>
+           <div class="card-columns border bg-light" id="marketList" style="min-height:50px !important;"></div>
+
+    		</div>
+    	</div>
+    </div>
+
+    <input type="hidden" id="diceId" />
+    <!-- Modal - add dice dialog-->
+    <div class="modal fade" id="addDiceDiag" tabindex="-1" role="dialog" aria-labelledby="addDiceLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addDiceLabel">Add new dice</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            Number of sides (6-20):
+            <input type="number" min="6" max="20" step="2" id="inputNumside" /><br/>
+            Color (1-10):
+            <input type="number" min="1" max="10" step="1" id="inputColor" /><br/>
+            Creation value:
+            <input type="number" min="0.011" id="inputValue" /> ETH<br/>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary"  data-dismiss="modal" onclick="add(parseInt($('#inputNumside').val()),parseInt($('#inputColor').val()),parseFloat($('#inputValue').val()));">Add Dice</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal - transfer dialog-->
+    <div class="modal fade" id="transferDiag" tabindex="-1" role="dialog" aria-labelledby="transferLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="transferLabel">Transfer dice</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            Send to:
+            <input type="string" id="targetAddr" />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="transfer(parseInt($('#diceId').val()),$('#targetAddr').val())">Transfer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal - battle dialog-->
+    <div class="modal fade" id="battleDiag" tabindex="-1" role="dialog" aria-labelledby="battleLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="battleLabel">Battle</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            Battle against:
+            <input type="number" id="enemyDiceId" />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="battle(parseInt($('#diceId').val()),parseInt($('#enemyDiceId').val()))">Battle</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal - listMarket dialog-->
+    <div class="modal fade" id="listMarketDiag" tabindex="-1" role="dialog" aria-labelledby="listMarketLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="listMarketLabel">list on Market</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            Listing price:
+            <input type="number" id="listingPrice" />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="send_to_market(parseInt($('#diceId').val()),parseFloat($('#listingPrice').val()))">List</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal - buy dialog-->
+    <div class="modal fade" id="buyDiag" tabindex="-1" role="dialog" aria-labelledby="buyLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="buyLabel">Buy dice</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            Price:
+            <input type="number" id="price" />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="buy(parseInt($('#diceId').val()),parseFloat($('#price').val()))">Buy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+  </body>
+  <script>
+  //global parameters
+  let web3;
+  let web3Provider;
+  let chainId;
+  let selfAddress;
+
+  //array of contract object instances (as a map)
+  let contractInst = {};
+
+
+  //Load all contract addresses and instances
+  function loadContractInstances(){
+    let contracts = ["Dice", "DiceBattle", "DiceToken", "DiceMarket"];
+    let promise_array = [];
+    return new Promise((resolve1, reject1) => {
+      contracts.forEach(contractName => {
+        promise_array.push(new Promise((resolve2, reject2) => {
+          $.getJSON("contracts/"+contractName+".json").then(jsonData => {
+            try {
+              let addr = jsonData["networks"][chainId]["address"];
+              contractInst[contractName] = web3.eth.contract(jsonData["abi"]).at(addr);
+              resolve2();
+            } catch (err){
+              console.log("Contract address not found for "+contractName+". Contract probably not deployed.");
+              reject2("Contract address not found for "+contractName);
+            }
+          });
+        }))
+      });
+      Promise.all(promise_array).then(() => {
+        resolve1();
+      }).catch(err => {
+        reject1(err);
+      })
+    })
+  }
+
+  //returns a promise of array of diceIDs
+  function findDiceByOwner(owner){
+    let promise_array = [];
+    return new Promise((resolve1, reject1) => {
+      contractInst["Dice"].numDices((err, rsl) => {
+        let totalDices = rsl.c[0];  //total dices in contract
+
+        //form an array of promises to check ownership of dice as a bitmap
+        for(i=0;i<totalDices;i++){
+          promise_array.push(new Promise((resolve2, reject2) => {
+            contractInst["Dice"].ownerOf(i, (err, rsl) => {
+              if(rsl.toLowerCase() == owner.toLowerCase()){
+                resolve2(true);
+              }else{
+                resolve2(false);
+              }
+            })
+          })
+          )//promise_array
+        }
+
+        //merge the bitmap into an array of diceIds
+        Promise.all(promise_array).then(owner_map => {
+          let i=0;
+          let dices = [];
+          owner_map.forEach(o => {
+            if(o)
+              dices.push(i);
+              i++;
+          })
+          resolve1(dices);  //return results as promise for entire function
+        })
+      })
+    })
+  }
+
+  //get sides, color, number, value parameters of a dice
+  function getDice(diceId) {
+    let sides, color, number, value;
+    return new Promise((resolve, reject) => {
+      contractInst["Dice"].getDiceSides(diceId, (err, rsl) =>{
+        if(err)
+          reject(err)
+        sides = rsl.c[0];
+        contractInst["Dice"].getDiceNumber(diceId, (err, rsl) =>{
+          if(err)
+            reject(err)
+          number = rsl.c[0];
+          contractInst["Dice"].getDiceColor(diceId, (err, rsl) =>{
+            if(err)
+              reject(err)
+            color = rsl.c[0];
+            contractInst["Dice"].getDiceValue(diceId, (err, rsl) =>{
+              if(err)
+                reject(err)
+              value = rsl.c[0];
+              resolve([sides, color, number, value])
+            })
+          })
+        })
+      })
+    })
+  }
+
+
+
+
+
+  //contract calls in Dice.sol -----
+
+  function add(sides, color, value){
+    contractInst["Dice"].add.sendTransaction(sides, color, {value: parseInt(value*1e18)+"", gas: 500000}, (rsl) => {
+      refreshSection("my_dices");
+    })
+  }
+
+  function roll(diceId){
+    contractInst["Dice"].roll.sendTransaction(diceId, {gas: 800000}, (rsl) => {
+      refreshSection("my_dices");
+    })
+  }
+
+  function stopRoll(diceId){
+    contractInst["Dice"].stopRoll.sendTransaction(diceId, {gas: 800000}, (rsl) => {
+      refreshSection("my_dices");
+    })
+  }
+
+  function transfer(diceId, to){
+    contractInst["Dice"].transferFrom.sendTransaction(selfAddress, to, diceId, {gas: 800000}, (rsl) => {
+      refreshSection("my_dices");
+    })
+  }
+
+  function send_to_battle(diceId){
+    contractInst["Dice"].approve.sendTransaction(contractInst["DiceBattle"].address, diceId, {gas: 800000}, (rsl) => {
+      contractInst["DiceBattle"].list.sendTransaction(diceId, {gas: 800000}, (rsl) => {
+        refreshSection("my_dices");
+        refreshSection("battle");
+      })
+    })
+  }
+
+  function send_to_market(diceId, price){
+    contractInst["Dice"].approve.sendTransaction(contractInst["DiceMarket"].address, diceId, {gas: 800000}, (rsl) => {
+      contractInst["DiceMarket"].list.sendTransaction(diceId, price, {gas: 1000000}, (rsl) => {
+        refreshSection("my_dices");
+        refreshSection("market");
+      })
+    })
+  }
+
+  function destroy(diceId){
+    contractInst["Dice"].destroyDice.sendTransaction(diceId, {gas: 800000}, (rsl) => {
+      refreshSection("my_dices");
+    })
+  }
+
+
+  //contract calls in DiceBattle.sol -----
+
+  function unlist_battle(diceId){
+    contractInst["DiceBattle"].unlist.sendTransaction(diceId, {gas: 800000}, (rsl) => {
+      refreshSection("my_dices");
+      refreshSection("battle");
+    })
+  }
+
+  function battle(myDiceId, enemyDiceId){
+    contractInst["DiceBattle"].battle.sendTransaction(myDiceId, enemyDiceId, {gas: 800000}, (rsl) => {
+      refreshSection("my_dices");
+      refreshSection("battle");
+    })
+  }
+
+
+
+  //contract calls in DiceToken.sol -----
+
+  function getTokenBalance(addr){
+    return new Promise((resolve, reject) => {
+      contractInst["DiceToken"].balanceOf(addr, (err, rsl) => {
+        resolve(rsl.c[0]);
+      })
+    })
+  }
+
+
+  //contract calls in DiceMarket.sol -----
+
+  function unlist_market(diceId){
+    contractInst["DiceMarket"].unlist.sendTransaction(diceId, {gas: 800000}, (rsl) => {
+      refreshSection("my_dices");
+      refreshSection("market");
+    })
+  }
+
+  function buy(diceId, price){
+    contractInst["DiceToken"].approve.sendTransaction(contractInst["DiceMarket"].address, price, {gas: 1000000}, (rsl) => {
+      contractInst["DiceMarket"].buy.sendTransaction(diceId, price, {gas: 1000000}, (rsl) => {
+        refreshSection("my_dices");
+        refreshSection("market");
+        refreshTokenBalance();
+      })
+    })
+  }
+
+
+
+
+
+  //UI functions ----------------------------------------------------------
+
+  //generate the HTML code for 1 dice as a bootstrap card
+  //diceId, sides, color, num are parameters of the dice
+  //mode switches the available buttons
+  //  1 - personal, 2 - in battle, 3 - in markpetplace(own dice), 4 - in marketplace(others' dice)
+  // [optional] price - listing price
+  function diceCard(diceId, sides, color, num, value, mode, price){
+    if(num == 0)
+      num = "(is rolling)";
+
+    html = '<div class="card" style="width:100%;">'+
+               '<div class="card-body"><h4 class="card-title"><a>Dice '+diceId+'</a></h4>'+
+                 '<p class="card-text">sides: '+sides+'<br/>'+
+                 'colour: '+color+' <br/>'+
+                 'number: '+num+' <br/>'+
+                 'value: '+value+' ETH<br/>';
+
+    if(mode > 1)
+      html += 'listing price: '+price+' DCT';
+
+    html += '</p>';
+
+    switch(mode) {
+      case 0:
+        //personal dice
+        html += '<a href="#" class="btn btn-primary" onclick="roll('+diceId+');">Roll</a> '+
+                '<a href="#" class="btn btn-primary" onclick="stopRoll('+diceId+');">Stop roll</a>'+
+                '<a href="#" class="btn btn-warning" onclick="transferDiag('+diceId+');">Transfer</a> '+
+                '<a href="#" class="btn btn-warning" onclick="send_to_battle('+diceId+');">Send to Battle</a> '+
+                '<a href="#" class="btn btn-warning" onclick="listMarketDiag('+diceId+');">Send to Marketplace</a> '+
+                '<a href="#" class="btn btn-danger" onclick="destroy('+diceId+');">Destroy</a>';
+                break;
+      case 1:
+        //dice in battle
+        html += '<a href="#" class="btn btn-primary" onclick="unlist_battle('+diceId+');">Unlist</a> '+
+                '<a href="#" class="btn btn-warning" onclick="battleDiag('+diceId+');">Battle</a>';
+                break;
+      case 2:
+        //dice in marketplace (self)
+        html += '<a href="#" class="btn btn-primary" onclick="unlist_market('+diceId+');">Unlist</a>';
+                break;
+      case 3:
+        //dice in marketplace (others)
+        html += '<a href="#" class="btn btn-primary" onclick="buyDiag('+diceId+');">buy</a>';
+                break;
+    }
+
+    html += '</div></div>';
+    return html;
+  }
+
+  //refresh a particular section
+  //sectionType = my_dices / battle / market
+  function refreshSection(sectionType) {
+    let mode, addr, sectionId;
+    switch(sectionType){
+      case "my_dices":
+        sectionId = "myDiceList";
+        addr = selfAddress;
+        mode = 0;
+        break;
+      case "battle":
+        sectionId = "battleList";
+        addr = contractInst["DiceBattle"].address;
+        mode = 1;
+        break;
+      case "market":
+        sectionId = "marketList";
+        addr = contractInst["DiceMarket"].address;
+        break;
+      default:
+        throw "Invalid sectionType";
+    }
+    $("#"+sectionId).html("");
+    findDiceByOwner(addr).then(dices => {
+        dices.forEach(diceId => {
+          getDice(diceId).then(diceParams => {
+            if(sectionType != "market"){
+              $("#"+sectionId).append(
+                  diceCard(diceId,
+                           diceParams[0], //sides
+                           diceParams[1], //color
+                           diceParams[2], //num
+                           diceParams[3]/10000, //value
+                           mode));
+            }else{
+              //marketplace
+              contractInst["DiceMarket"].checkPrice(diceId, (err, rsl) =>{
+                let price = rsl.c[0];
+                contractInst["DiceMarket"].checkOwner(diceId, (err, rsl) =>{
+                  if(rsl.toLowerCase() == selfAddress.toLowerCase()){
+                    mode = 2;
+                  }else{
+                    mode = 3;
+                  }
+                  $("#"+sectionId).append(
+                      diceCard(diceId,
+                               diceParams[0], //sides
+                               diceParams[1], //color
+                               diceParams[2], //num
+                               diceParams[3]/10000, //value
+                               mode,
+                               price));
+                })
+              })
+            }
+          })
+        })
+    })
+  }
+
+  function refreshTokenBalance(){
+    getTokenBalance(selfAddress).then((bal) => {
+      $("#token_bal").html(bal);
+    })
+  }
+
+  //refresh all section
+  function refreshAll(){
+    refreshTokenBalance();
+    refreshSection("my_dices");
+    refreshSection("battle");
+    refreshSection("market");
+  }
+
+  //modal dialog for add dice
+  function addDiceDiag(diceId){
+    $('#addDiceDiag').modal({show:true});
+  }
+
+  //modal dialog for transfer
+  function transferDiag(diceId){
+    $('#diceId').val(diceId);
+    $('#transferDiag').modal({show:true});
+  }
+
+  //modal dialog for battle
+  function battleDiag(diceId){
+    $('#diceId').val(diceId);
+    $('#battleDiag').modal({show:true});
+  }
+
+  //modal dialog for battle
+  function listMarketDiag(diceId){
+    $('#diceId').val(diceId);
+    $('#listMarketDiag').modal({show:true});
+  }
+
+  //modal dialog for buy
+  function buyDiag(diceId){
+    $('#diceId').val(diceId);
+    $('#buyDiag').modal({show:true});
+  }
+
+
+  $( document ).ready(function() {
+
+      //connect to metamask----------------------
+      if (window.ethereum) {
+        try {
+          // Request account access if needed
+          window.ethereum.enable().then(rsl => {
+            // Acccounts now exposed
+            //populate ethereum web3 object
+            web3 = new Web3(window.web3.currentProvider);
+            chainId = window.ethereum.networkVersion;
+            selfAddress = web3.currentProvider.selectedAddress;
+            loadContractInstances().then(() => {
+              refreshAll();  //trigger refreshing all sections
+            }).catch(() => {
+              alert("Error loading contracts. (Maybe they are not deployed?)")
+            });
+          })
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      // Legacy dapp browsers...
+      else if (window.web3) {
+        //populate ethereum web3 object
+        web3 = new Web3(window.web3.currentProvider);
+        chainId = window.web3.currentProvider.networkVersion;
+        selfAddress = window.web3.currentProvider.selectedAddress;
+        loadContractInstances().then(() => {
+          refreshAll();  //trigger refreshing all sections
+        }).catch(() => {
+          alert("Error loading contracts. (Maybe they are not deployed?)")
+        });
+      }
+      // Non-dapp browsers...
+      else {
+        alert('Non-Ethereum browser detected. You should consider trying MetaMask!');
+      }
+  });
+
+  </script>
+</html>
