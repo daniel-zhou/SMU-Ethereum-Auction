@@ -19,7 +19,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^2.5.1",
     "express": "^4.17.1",
-    "truffle": "^5.1.16",
+    "truffle": "^5.1.36",
     "web3": "^1.2.11"
   }
 }
