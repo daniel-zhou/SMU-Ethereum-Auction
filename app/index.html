@@ -29,6 +29,7 @@
       }
     </style>
   </head>
+
   <body>
     <div class="col-md-12">
       <h1 style="color:blue;">Ethereum Blind Auction Example</h1>
@@ -52,20 +53,10 @@
     		<div class="col-md-12">
           <h2>My Bids&nbsp;&nbsp;&nbsp;<a href="#" class="btn btn-primary" onclick="sendBidDiag();">Send a Bid</a></h2>
           <table id="myBidList">
-            <tr>
-              <th>No.</th>
-              <th>Value</th>
-              <th>Random</th>
-            </tr>
-            <tr>
-              <td>1</td>
-              <td>434324</td>
-              <td>4343242</td>
-            </tr>
           </table>
           <br/>
           <br/>
-          <h2>Bid Result&nbsp;&nbsp;&nbsp;<a href="#" class="btn btn-primary" onclick="revealBidDiag();">Reveal Bid</a></h2>
+          <h2>Bid Result&nbsp;&nbsp;&nbsp;<a href="#" class="btn btn-primary" onclick="reveal();">Reveal Bid</a></h2>
           <div class="card-columns border bg-light" id="bidResult" style="min-height:50px !important;"></div>
           <br/>
           <br/>
@@ -77,6 +68,7 @@
     </div>
 
     <input type="hidden" id="bidHashId" />
+
     <!-- Modal - add dice dialog-->
     <div class="modal fade" id="sendBidDiag" tabindex="-1" role="dialog" aria-labelledby="sendBidLabel" aria-hidden="true">
       <div class="modal-dialog" role="document">
@@ -88,11 +80,11 @@
             </button>
           </div>
           <div class="modal-body">
-            Random:
-            <input type="number" min="6" max="20" step="2" id="inputRandom" /><br/>
-            <p></p>
             Value:
             <input type="number" min="0.011" id="inputValue" /> ETH<br/>
+            <p></p>
+            Random:
+            <input type="number" step="2" id="inputRandom" /><br/>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
@@ -101,100 +93,8 @@
         </div>
       </div>
     </div>
-
-    <!-- Modal - reveal dialog-->
-    <div class="modal fade" id="revealBidDiag" tabindex="-1" role="dialog" aria-labelledby="revealLabel" aria-hidden="true">
-      <div class="modal-dialog" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="revealLabel">Reveal Bids</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body">
-            Random:
-            <input type="number" min="6" max="20" step="2" id="reveakRandom" /><br/>
-            <p></p>
-            Value:
-            <input type="number" min="0.011" id="revealValue" /> ETH<br/>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary"  data-dismiss="modal" onclick="reveal(parseInt($('#revealRandom').val()),parseFloat($('#revealValue').val()));">Reveal</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal - battle dialog-->
-    <div class="modal fade" id="battleDiag" tabindex="-1" role="dialog" aria-labelledby="battleLabel" aria-hidden="true">
-      <div class="modal-dialog" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="battleLabel">Battle</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body">
-            Battle against:
-            <input type="number" id="enemyDiceId" />
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="battle(parseInt($('#diceId').val()),parseInt($('#enemyDiceId').val()))">Battle</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal - listMarket dialog-->
-    <div class="modal fade" id="listMarketDiag" tabindex="-1" role="dialog" aria-labelledby="listMarketLabel" aria-hidden="true">
-      <div class="modal-dialog" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="listMarketLabel">list on Market</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body">
-            Listing price:
-            <input type="number" id="listingPrice" />
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="send_to_market(parseInt($('#diceId').val()),parseFloat($('#listingPrice').val()))">List</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal - buy dialog-->
-    <div class="modal fade" id="buyDiag" tabindex="-1" role="dialog" aria-labelledby="buyLabel" aria-hidden="true">
-      <div class="modal-dialog" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="buyLabel">Buy dice</h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div class="modal-body">
-            Price:
-            <input type="number" id="price" />
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary" data-dismiss="modal" onclick="buy(parseInt($('#diceId').val()),parseFloat($('#price').val()))">Buy</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-
   </body>
+
   <script>
   //global parameters
   let web3;
@@ -204,11 +104,12 @@
 
   //array of contract object instances (as a map)
   let contractInst = {};
-
+  let myBids = [];
 
   //Load all contract addresses and instances
-  function loadContractInstances(){
-    let contracts = ["Dice", "DiceBattle", "DiceToken", "DiceMarket"];
+  function loadContractInstances() {
+    let contracts = ["BlindAuction"];
+    //let contracts = ["Dice", "DiceBattle", "DiceToken", "DiceMarket"];
     let promise_array = [];
     return new Promise((resolve1, reject1) => {
       contracts.forEach(contractName => {
@@ -223,305 +124,101 @@
               reject2("Contract address not found for "+contractName);
             }
           });
-        }))
+        }));
       });
       Promise.all(promise_array).then(() => {
         resolve1();
       }).catch(err => {
         reject1(err);
-      })
-    })
+      });
+    });
   }
 
-  //returns a promise of array of diceIDs
-  function findBidsByOwner(owner){
-    let promise_array = [];
-    return new Promise((resolve1, reject1) => {
-      contractInst["BlindAuction"].numDices((err, rsl) => {
-        let totalDices = rsl.c[0];  //total dices in contract
-
-        //form an array of promises to check ownership of dice as a bitmap
-        for(i=0;i<totalDices;i++){
-          promise_array.push(new Promise((resolve2, reject2) => {
-            contractInst["BlindAuction"].ownerOf(i, (err, rsl) => {
-              if(rsl.toLowerCase() == owner.toLowerCase()){
-                resolve2(true);
-              }else{
-                resolve2(false);
-              }
-            })
-          })
-          )//promise_array
-        }
-
-        //merge the bitmap into an array of diceIds
-        Promise.all(promise_array).then(owner_map => {
-          let i=0;
-          let dices = [];
-          owner_map.forEach(o => {
-            if(o)
-              dices.push(i);
-              i++;
-          })
-          resolve1(dices);  //return results as promise for entire function
-        })
-      })
-    })
-  }
-
-  //get sides, color, number, value parameters of a dice
-  function getDice(diceId) {
-    let sides, color, number, value;
-    return new Promise((resolve, reject) => {
-      contractInst["Dice"].getDiceSides(diceId, (err, rsl) =>{
-        if(err)
-          reject(err)
-        sides = rsl.c[0];
-        contractInst["Dice"].getDiceNumber(diceId, (err, rsl) =>{
-          if(err)
-            reject(err)
-          number = rsl.c[0];
-          contractInst["Dice"].getDiceColor(diceId, (err, rsl) =>{
-            if(err)
-              reject(err)
-            color = rsl.c[0];
-            contractInst["Dice"].getDiceValue(diceId, (err, rsl) =>{
-              if(err)
-                reject(err)
-              value = rsl.c[0];
-              resolve([sides, color, number, value])
-            })
-          })
-        })
-      })
-    })
-  }
-
-
-
-
-
-  //contract calls in BlindAuction.sol -----
-
-  function bid(random, value){
-    contractInst["BlindAuction"].bid.sendTransaction(random, value, (rsl) => {
-      refreshSection("my_dices");
-    })
-  }
-
-  function reveal(random, value){
-    contractInst["BlindAuction"].roll.sendTransaction(diceId, {gas: 800000}, (rsl) => {
-      refreshSection("my_dices");
-    })
-  }
-
-  function destroy(diceId){
-    contractInst["Dice"].destroyDice.sendTransaction(diceId, {gas: 800000}, (rsl) => {
-      refreshSection("my_dices");
-    })
-  }
-
-
-  //contract calls in DiceBattle.sol -----
-
-  function unlist_battle(diceId){
-    contractInst["DiceBattle"].unlist.sendTransaction(diceId, {gas: 800000}, (rsl) => {
-      refreshSection("my_dices");
-      refreshSection("battle");
-    })
-  }
-
-  function battle(myDiceId, enemyDiceId){
-    contractInst["DiceBattle"].battle.sendTransaction(myDiceId, enemyDiceId, {gas: 800000}, (rsl) => {
-      refreshSection("my_dices");
-      refreshSection("battle");
-    })
-  }
-
+  $( document ).ready(function() {
+    //connect to metamask----------------------
+    if (window.ethereum) {
+      try {
+        // Request account access if needed
+        window.ethereum.enable().then(rsl => {
+          // Acccounts now exposed
+          //populate ethereum web3 object
+          web3 = new Web3(window.web3.currentProvider);
+          chainId = window.ethereum.networkVersion;
+          selfAddress = web3.currentProvider.selectedAddress;
+          loadContractInstances().then(() => {
+            refreshAll();  //trigger refreshing all sections
+          }).catch(() => {
+            alert("Error loading contracts. (Maybe they are not deployed?)")
+          });
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    // Legacy dapp browsers...
+    else if (window.web3) {
+      //populate ethereum web3 object
+      web3 = new Web3(window.web3.currentProvider);
+      chainId = window.web3.currentProvider.networkVersion;
+      selfAddress = window.web3.currentProvider.selectedAddress;
+      loadContractInstances().then(() => {
+        refreshAll();  //trigger refreshing all sections
+      }).catch(() => {
+        alert("Error loading contracts. (Maybe they are not deployed?)")
+      });
+    }
+    // Non-dapp browsers...
+    else {
+      alert('Non-Ethereum browser detected. You should consider trying MetaMask!');
+    }
+  });
 
   //UI functions ----------------------------------------------------------
-
-  //generate the HTML code for 1 dice as a bootstrap card
-  //diceId, sides, color, num are parameters of the dice
-  //mode switches the available buttons
-  //  1 - personal, 2 - in battle, 3 - in markpetplace(own dice), 4 - in marketplace(others' dice)
-  // [optional] price - listing price
-  function diceCard(diceId, sides, color, num, value, mode, price){
-    if(num == 0)
-      num = "(is rolling)";
-
-    html = '<div class="card" style="width:100%;">'+
-               '<div class="card-body"><h4 class="card-title"><a>Dice '+diceId+'</a></h4>'+
-                 '<p class="card-text">sides: '+sides+'<br/>'+
-                 'colour: '+color+' <br/>'+
-                 'number: '+num+' <br/>'+
-                 'value: '+value+' ETH<br/>';
-
-    if(mode > 1)
-      html += 'listing price: '+price+' DCT';
-
-    html += '</p>';
-
-    switch(mode) {
-      case 0:
-        //personal dice
-        html += '<a href="#" class="btn btn-primary" onclick="roll('+diceId+');">Roll</a> '+
-                '<a href="#" class="btn btn-primary" onclick="stopRoll('+diceId+');">Stop roll</a>'+
-                '<a href="#" class="btn btn-warning" onclick="transferDiag('+diceId+');">Transfer</a> '+
-                '<a href="#" class="btn btn-warning" onclick="send_to_battle('+diceId+');">Send to Battle</a> '+
-                '<a href="#" class="btn btn-warning" onclick="listMarketDiag('+diceId+');">Send to Marketplace</a> '+
-                '<a href="#" class="btn btn-danger" onclick="destroy('+diceId+');">Destroy</a>';
-                break;
-      case 1:
-        //dice in battle
-        html += '<a href="#" class="btn btn-primary" onclick="unlist_battle('+diceId+');">Unlist</a> '+
-                '<a href="#" class="btn btn-warning" onclick="battleDiag('+diceId+');">Battle</a>';
-                break;
-      case 2:
-        //dice in marketplace (self)
-        html += '<a href="#" class="btn btn-primary" onclick="unlist_market('+diceId+');">Unlist</a>';
-                break;
-      case 3:
-        //dice in marketplace (others)
-        html += '<a href="#" class="btn btn-primary" onclick="buyDiag('+diceId+');">buy</a>';
-                break;
+  function refreshBidList() {
+    $("#myBidList").html("");
+    $("#myBidList").append("<tr><th>No.</th><th>Value</th><th>Random</th></tr>");
+    let index = myBids.length;
+    for (let i = 0; i < myBids.length; i++) {
+      let value = myBids[i].value;
+      let random = myBids[i].random;
+      $("#myBidList").append("<tr><td>" + i + "</td><td>" + value + "</td><td>" + random + "</td></tr>");
     }
-
-    html += '</div></div>';
-    return html;
-  }
-
-  //refresh a particular section
-  //sectionType = my_dices / battle / market
-  function refreshSection(sectionType) {
-    let mode, addr, sectionId;
-    switch(sectionType){
-      case "myBidList":
-        sectionId = "myBidList";
-        addr = selfAddress;
-        mode = 0;
-        // Find a <table> element with id="myTable":
-        var table = document.getElementById("myBidList");
-        var row = table.insertRow(0);
-        var cell1 = row.insertCell(0);
-        var cell2 = row.insertCell(1);
-        var cell3 = row.insertCell(2);
-
-        // Add some text to the new cells:
-        cell1.innerHTML = 1;
-        cell2.innerHTML = "NEW CELL2";
-        cell3.innerHTML = 
-        break;
-      case "bidResult":
-        sectionId = "bidResult";
-        addr = contractInst["DiceBattle"].address;
-        mode = 1;
-        break;
-      default:
-        throw "Invalid sectionType";
-    }
-    $("#"+sectionId).html("");
-    findDiceByOwner(addr).then(dices => {
-        dices.forEach(diceId => {
-          getDice(diceId).then(diceParams => {
-            if(sectionType != "market") {
-              $("#"+sectionId).append(
-                  diceCard(diceId,
-                           diceParams[0], //sides
-                           diceParams[1], //color
-                           diceParams[2], //num
-                           diceParams[3]/10000, //value
-                           mode));
-            } else {
-              //marketplace
-              contractInst["DiceMarket"].checkPrice(diceId, (err, rsl) =>{
-                let price = rsl.c[0];
-                contractInst["DiceMarket"].checkOwner(diceId, (err, rsl) =>{
-                  if(rsl.toLowerCase() == selfAddress.toLowerCase()){
-                    mode = 2;
-                  }else{
-                    mode = 3;
-                  }
-                  $("#"+sectionId).append(
-                      diceCard(diceId,
-                               diceParams[0], //sides
-                               diceParams[1], //color
-                               diceParams[2], //num
-                               diceParams[3]/10000, //value
-                               mode,
-                               price));
-                })
-              })
-            }
-          })
-        })
-    })
-  }
-
-  function refreshTokenBalance(){
-    getTotalBidsNumber(selfAddress).then((total) => {
-      $("#total_bids").html(total);
-    })
-  }
-
-  //refresh all section
-  function refreshAll(){
-    refreshTokenBalance();
-    refreshSection("myBidList");
-    refreshSection("bidResult");
   }
 
   //modal dialog for send a bid
-  function sendBidDiag(diceId){
+  function sendBidDiag() {
     $('#sendBidDiag').modal({show:true});
   }
 
-  //modal dialog for transfer
-  function revealBidDiag(diceId){
-    $('#diceId').val(diceId);
-    $('#revealBidDiag').modal({show:true});
+  function refreshAll() {
+    myBids = [];
+    refreshBidList();
   }
 
+  //contract calls in BlindAuction.sol -----
+  function bid(random, value) {
+    //contractInst["BlindAuction"].bid.sendTransaction(random, value, (rsl) => {
+      let index = myBids.length;
+      myBids[index] = {"value": value, "random": random};
+      refreshBidList();
+    //})
+  }
 
-  $( document ).ready(function() {
+  function reveal(random, value){
+    let randoms = [];
+    let values = [];
+    for (let i = 0; i < myBids.length; i++) {
+      randoms[i] = myBids[i].random;
+      values[i] = myBids[i].value;
+    }
+    //contractInst["BlindAuction"].reveal.sendTransaction(randoms, values, (rsl) => {
+    //})
+  }
 
-      //connect to metamask----------------------
-      if (window.ethereum) {
-        try {
-          // Request account access if needed
-          window.ethereum.enable().then(rsl => {
-            // Acccounts now exposed
-            //populate ethereum web3 object
-            web3 = new Web3(window.web3.currentProvider);
-            chainId = window.ethereum.networkVersion;
-            selfAddress = web3.currentProvider.selectedAddress;
-            loadContractInstances().then(() => {
-              refreshAll();  //trigger refreshing all sections
-            }).catch(() => {
-              alert("Error loading contracts. (Maybe they are not deployed?)")
-            });
-          })
-        } catch (error) {
-          console.error(error);
-        }
-      }
-      // Legacy dapp browsers...
-      else if (window.web3) {
-        //populate ethereum web3 object
-        web3 = new Web3(window.web3.currentProvider);
-        chainId = window.web3.currentProvider.networkVersion;
-        selfAddress = window.web3.currentProvider.selectedAddress;
-        loadContractInstances().then(() => {
-          refreshAll();  //trigger refreshing all sections
-        }).catch(() => {
-          alert("Error loading contracts. (Maybe they are not deployed?)")
-        });
-      }
-      // Non-dapp browsers...
-      else {
-        alert('Non-Ethereum browser detected. You should consider trying MetaMask!');
-      }
-  });
-
+  function withdraw(diceId){
+    contractInst["BlindAuction"].withdraw.sendTransaction((rsl) => {
+      //efreshSection("my_dices");
+    })
+  }
   </script>
 </html>
