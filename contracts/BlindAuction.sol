@@ -1,4 +1,5 @@
 pragma solidity >=0.5.0 <0.7.0;
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract BlindAuction {
     struct Bid {
@@ -6,8 +7,11 @@ contract BlindAuction {
         uint deposit;
     }
 
+    IERC20 token;
     address payable public beneficiary;
 
+    uint public biddingTime;
+    uint public revealTime;
     uint public biddingEnd;
     uint public revealEnd;
     bool public ended;
@@ -18,54 +22,71 @@ contract BlindAuction {
     uint public highestBid;
 
     // Allowed withdrawals of previous bids
-    mapping(address => uint) pendingReturns;
+    mapping(address => uint) pendingBidRefunds;
 
+    event AuctionStarted(uint time);
     event AuctionEnded(address winner, uint highestBid);
 
-    /// Modifiers are a convenient way to validate inputs to
-    /// functions. `onlyBefore` is applied to `bid` below:
+    // validate inputs to functions.
+    // `onlyBefore` is applied to `bid` below:
     /// The new function body is the modifier's body where
     /// `_` is replaced by the old function body.
-    modifier onlyBefore(uint _time) {require(now < _time, "Bid has ended");_;}
-    modifier onlyAfter(uint _time) {require(now > _time, "Auction has been ended");_;}
+    modifier onlyBefore(uint _time) {require(now < _time, "Bid session has been closed");_;}
+    modifier onlyAfter(uint _time) {require(now > _time, "Auction session has been closed");_;}
 
     constructor(
         uint _biddingTime,
         uint _revealTime,
+        IERC20 ercAddress,
         address payable _beneficiary
     ) public {
+        biddingTime = _biddingTime;
+        revealTime = _revealTime;
+        token = ercAddress;
         beneficiary = _beneficiary;
-        biddingEnd = block.timestamp + _biddingTime;
-        revealEnd = biddingEnd + _revealTime;
+
+        uint currentTime = block.timestamp;
+        biddingEnd = currentTime + biddingTime;
+        revealEnd = biddingEnd + revealTime;
+        emit AuctionStarted(currentTime);
     }
 
-    /// Place a blinded bid with `_blindedBid` =
-    /// keccak256(abi.encodePacked(value, fake, secret)).
-    /// The sent ether is only refunded if the bid is correctly
-    /// revealed in the revealing phase. The bid is valid if the
-    /// ether sent together with the bid is at least "value" and
-    /// "fake" is not true. Setting "fake" to true and sending
-    /// not the exact amount are ways to hide the real bid but
-    /// still make the required deposit. The same address can
-    /// place multiple bids.
-    function bid(bytes32 _blindedBid)
+    // Place a blinded bid with `_blindedBid` = keccak256(abi.encodePacked(value, fake, secret)).
+    // The sent is only refunded if the bid is correctly revealed in the revealing phase.
+    // The bid is valid if "fake" is false and valid "value".
+    // if bid is not the exact amount or "fake" is true, unrevealed bid.
+    // The same address can place multiple bids.
+    function bid(uint _value, bytes32 _random)
         public
         payable
         onlyBefore(biddingEnd)
     {
-        bids[msg.sender].push(Bid({
-            blindedBid: _blindedBid,
-            deposit: msg.value
-        }));
+        bytes32 blindedBidHash = keccak256(abi.encodePacked(_value, _random));
+        bids[msg.sender].push(
+            Bid({
+                blindedBid: blindedBidHash,
+                deposit: msg.value
+            })
+        );
     }
 
-    /// Reveal your blinded bids. You will get a refund for all
-    /// correctly blinded invalid bids and for all bids except for
-    /// the totally highest.
+    /// Withdraw bid that was overbid.
+    function withdraw() public {
+        uint amount = pendingBidRefunds[msg.sender];
+        if (amount > 0) {
+            // clear bidRefunds to zero because the recipient
+            // can call this function again.
+            pendingBidRefunds[msg.sender] = 0;
+
+            msg.sender.transfer(amount);
+        }
+    }
+
+    /// Reveal all blinded bids. Refund for all correctly blinded invalid bids,
+    /// except for the totally highest.
     function reveal(
         uint[] memory _values,
-        bool[] memory _fake,
-        bytes32[] memory _secret
+        bytes32[] memory _randoms
     )
         public
         onlyAfter(biddingEnd)
@@ -73,59 +94,34 @@ contract BlindAuction {
     {
         uint length = bids[msg.sender].length;
         require(_values.length == length, "values length is not equal");
-        require(_fake.length == length, "fake length is not equal");
-        require(_secret.length == length, "secret length is not equal");
+        require(_randoms.length == length, "randoms length is not equal");
 
-        uint refund;
+        uint depositRefund;
         for (uint i = 0; i < length; i++) {
-            Bid storage bidToCheck = bids[msg.sender][i];
-            (uint value, bool fake, bytes32 secret) = (_values[i], _fake[i], _secret[i]);
-            if (bidToCheck.blindedBid != keccak256(abi.encodePacked(value, fake, secret))) {
-                // Bid was not actually revealed.
+            Bid storage bidToValidate = bids[msg.sender][i];
+            (uint value, bytes32 secret) = (_values[i], _randoms[i]);
+            if (bidToValidate.blindedBid != keccak256(abi.encodePacked(value, secret))) {
+                // Bid was not successfully revealed.
                 // Do not refund deposit.
                 continue;
             }
-            refund += bidToCheck.deposit;
-            if (!fake && bidToCheck.deposit >= value) {
-                if (placeBid(msg.sender, value))
-                    refund -= value;
+            depositRefund += bidToValidate.deposit;
+            if (!fake && bidToValidate.deposit >= value) {
+                // valid revealed bid. place for bidding.
+                if (placeBid(msg.sender, value)) {
+                    // successful bid. deduct bid value.
+                    depositRefund -= value;
+                }
             }
-            // Make it impossible for the sender to re-claim
-            // the same deposit.
-            bidToCheck.blindedBid = bytes32(0);
+            // clear the bid after being revealed.
+            bidToValidate.blindedBid = bytes32(0);
         }
-        msg.sender.transfer(refund);
+        // send back the balance of desposit after processing bid.
+        msg.sender.transfer(depositRefund);
+        //token.transferFrom(this, msg.sender.address, depositRefund);
     }
 
-    /// Withdraw a bid that was overbid.
-    function withdraw() public {
-        uint amount = pendingReturns[msg.sender];
-        if (amount > 0) {
-            // It is important to set this to zero because the recipient
-            // can call this function again as part of the receiving call
-            // before `transfer` returns (see the remark above about
-            // conditions -> effects -> interaction).
-            pendingReturns[msg.sender] = 0;
-
-            msg.sender.transfer(amount);
-        }
-    }
-
-    /// End the auction and send the highest bid
-    /// to the beneficiary.
-    function auctionEnd()
-        public
-        onlyAfter(revealEnd)
-    {
-        require(!ended, "auction has already been ended");
-        emit AuctionEnded(highestBidder, highestBid);
-        ended = true;
-        beneficiary.transfer(highestBid);
-    }
-
-    // This is an "internal" function which means that it
-    // can only be called from the contract itself (or from
-    // derived contracts).
+    // place bid to see if it is highest one or not.
     function placeBid(address bidder, uint value) internal
             returns (bool success)
     {
@@ -134,10 +130,22 @@ contract BlindAuction {
         }
         if (highestBidder != address(0)) {
             // Refund the previously highest bidder.
-            pendingReturns[highestBidder] += highestBid;
+            pendingBidRefunds[highestBidder] += highestBid;
         }
         highestBid = value;
         highestBidder = bidder;
         return true;
+    }
+
+    /// End the auction and send the highest bid
+    /// to the beneficiary.
+    function auctionEnd()
+        public
+        onlyAfter(revealEnd)
+    {
+        require(!ended, "Auction hasn't started or had ended");
+        emit AuctionEnded(highestBidder, highestBid);
+        ended = true;
+        beneficiary.transfer(highestBid);
     }
 }
