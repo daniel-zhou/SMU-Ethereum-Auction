@@ -16,7 +16,7 @@ contract BlindAuction {
     uint public revealEnd;
     bool public ended;
 
-    mapping(address => Bid[]) public bids;
+    mapping(address => Bid) public bids;
 
     address _owner = msg.sender;
     address public highestBidder;
@@ -57,15 +57,15 @@ contract BlindAuction {
         onlyBefore(biddingEnd)
     {
         bids[msg.sender] = Bid({
-            blindedBid: blindedBidHash
+            blindedBid: _bidHash
         });
     }
 
     /// Reveal all blinded bids. Refund for all correctly blinded invalid bids,
     /// except for the totally highest.
     function reveal(
-        uint[] memory _value,
-        bytes32[] memory _random
+        uint _value,
+        bytes32 _random
     )
         public
         onlyAfter(biddingEnd)
@@ -74,7 +74,7 @@ contract BlindAuction {
         Bid storage bidToValidate = bids[msg.sender];
         if (bidToValidate.blindedBid == keccak256(abi.encodePacked(_value, _random))) {
             // valid revealed bid. place for bidding.
-            placeBid(msg.sender, value);
+            placeBid(msg.sender, _value);
             // clear the bid after being revealed.
             bidToValidate.blindedBid = bytes32(0);
         }
@@ -90,7 +90,7 @@ contract BlindAuction {
         if (highestBidder != address(0)) {
             // Refund the previously highest bidder.
             require(token.transferFrom(_owner, highestBidder, highestBid), "D1");
-             token.Transfer(_owner, highestBidder, highestBid);
+            //token.Transfer(_owner, highestBidder, highestBid);
         }
         highestBid = value;
         highestBidder = bidder;
