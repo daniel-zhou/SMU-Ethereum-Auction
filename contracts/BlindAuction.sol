@@ -1,10 +1,10 @@
 pragma solidity >=0.5.0 <0.7.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./AuctionToken.sol";
 
 contract BlindAuction {
     struct Bid {
         bytes32 blindedBid;
-        uint deposit;
     }
 
     IERC20 token;
@@ -18,11 +18,9 @@ contract BlindAuction {
 
     mapping(address => Bid[]) public bids;
 
+    address _owner = msg.sender;
     address public highestBidder;
     uint public highestBid;
-
-    // Allowed withdrawals of previous bids
-    mapping(address => uint) pendingBidRefunds;
 
     event AuctionStarted(uint time);
     event AuctionEnded(address winner, uint highestBid);
@@ -51,74 +49,35 @@ contract BlindAuction {
         emit AuctionStarted(currentTime);
     }
 
-    // Place a blinded bid with `_blindedBid` = keccak256(abi.encodePacked(value, fake, secret)).
-    // The sent is only refunded if the bid is correctly revealed in the revealing phase.
-    // The bid is valid if "fake" is false and valid "value".
-    // if bid is not the exact amount or "fake" is true, unrevealed bid.
-    // The same address can place multiple bids.
-    function bid(uint _value, bytes32 _random)
+    // Place a blinded bid with `_blindedBid` = keccak256(abi.encodePacked(value, random)).
+    // The same address can place one bid. The latest one is valid.
+    function bid(bytes32 _bidHash)
         public
         payable
         onlyBefore(biddingEnd)
     {
-        bytes32 blindedBidHash = keccak256(abi.encodePacked(_value, _random));
-        bids[msg.sender].push(
-            Bid({
-                blindedBid: blindedBidHash,
-                deposit: msg.value
-            })
-        );
-    }
-
-    /// Withdraw bid that was overbid.
-    function withdraw() public {
-        uint amount = pendingBidRefunds[msg.sender];
-        if (amount > 0) {
-            // clear bidRefunds to zero because the recipient
-            // can call this function again.
-            pendingBidRefunds[msg.sender] = 0;
-
-            msg.sender.transfer(amount);
-        }
+        bids[msg.sender] = Bid({
+            blindedBid: blindedBidHash
+        });
     }
 
     /// Reveal all blinded bids. Refund for all correctly blinded invalid bids,
     /// except for the totally highest.
     function reveal(
-        uint[] memory _values,
-        bytes32[] memory _randoms
+        uint[] memory _value,
+        bytes32[] memory _random
     )
         public
         onlyAfter(biddingEnd)
         onlyBefore(revealEnd)
     {
-        uint length = bids[msg.sender].length;
-        require(_values.length == length, "values length is not equal");
-        require(_randoms.length == length, "randoms length is not equal");
-
-        uint depositRefund;
-        for (uint i = 0; i < length; i++) {
-            Bid storage bidToValidate = bids[msg.sender][i];
-            (uint value, bytes32 secret) = (_values[i], _randoms[i]);
-            if (bidToValidate.blindedBid != keccak256(abi.encodePacked(value, secret))) {
-                // Bid was not successfully revealed.
-                // Do not refund deposit.
-                continue;
-            }
-            depositRefund += bidToValidate.deposit;
-            if (!fake && bidToValidate.deposit >= value) {
-                // valid revealed bid. place for bidding.
-                if (placeBid(msg.sender, value)) {
-                    // successful bid. deduct bid value.
-                    depositRefund -= value;
-                }
-            }
+        Bid storage bidToValidate = bids[msg.sender];
+        if (bidToValidate.blindedBid == keccak256(abi.encodePacked(_value, _random))) {
+            // valid revealed bid. place for bidding.
+            placeBid(msg.sender, value);
             // clear the bid after being revealed.
             bidToValidate.blindedBid = bytes32(0);
         }
-        // send back the balance of desposit after processing bid.
-        msg.sender.transfer(depositRefund);
-        //token.transferFrom(this, msg.sender.address, depositRefund);
     }
 
     // place bid to see if it is highest one or not.
@@ -130,10 +89,13 @@ contract BlindAuction {
         }
         if (highestBidder != address(0)) {
             // Refund the previously highest bidder.
-            pendingBidRefunds[highestBidder] += highestBid;
+            require(token.transferFrom(_owner, highestBidder, highestBid), "D1");
+             token.Transfer(_owner, highestBidder, highestBid);
         }
         highestBid = value;
         highestBidder = bidder;
+        // transfer the bid from the current highest bidder
+        require(token.transferFrom(highestBidder, _owner, highestBid), "D1");
         return true;
     }
 
@@ -146,6 +108,7 @@ contract BlindAuction {
         require(!ended, "Auction hasn't started or had ended");
         emit AuctionEnded(highestBidder, highestBid);
         ended = true;
-        beneficiary.transfer(highestBid);
+        // transfer the bid to the beneficiary
+        require(token.transferFrom(_owner, beneficiary, highestBid), "D1");
     }
 }

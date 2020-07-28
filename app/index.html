@@ -36,33 +36,32 @@
     </div>
     <br/>
     <div class="container-fluid">
-      <h2>Current Session: <div id="current_session" style="display: inline-block;"></div></h2>
+      <h4>Current Session: <div id="current_session" style="display: inline-block;"></div></h2>
       </br>
       <table>
         <tr>
           <th>
-            <h4>Bid Session Close at: <div id="bid_session_close_time" style="display: inline-block;"></div></h4>
+            <h5>Bid Session Close at: <div id="bid_session_close_time" style="display: inline-block;"></div></h4>
           </th>
           <th>
-            <h4>Reveal Session Close at: <div id="reveal_session_close_time" style="display: inline-block;"></div></h4>
+            <h5>Reveal Session Close at: <div id="reveal_session_close_time" style="display: inline-block;"></div></h4>
           </th>
         </tr>
       </table>
-      </br>
+      <br/>
+      <br/>
     	<div class="row">
     		<div class="col-md-12">
-          <h2>My Bids&nbsp;&nbsp;&nbsp;<a href="#" class="btn btn-primary" onclick="sendBidDiag();">Send a Bid</a></h2>
+          <h4>Token Balance:&nbsp;&nbsp;&nbsp;<div id="token_balance"></div></h4>
+          <br/>
+          <br/>
+          <h2>My Bid&nbsp;&nbsp;&nbsp;<a href="#" class="btn btn-primary" onclick="sendBidDiag();">Send a Bid</a></h2>
           <table id="myBidList">
           </table>
           <br/>
           <br/>
           <h2>Bid Result&nbsp;&nbsp;&nbsp;<a href="#" class="btn btn-primary" onclick="reveal();">Reveal Bid</a></h2>
           <div class="card-columns border bg-light" id="bidResult" style="min-height:50px !important;"></div>
-          <br/>
-          <br/>
-          <div>
-            <a href="#" class="btn btn-primary" onclick="withdrawBidDiag();">Withdraw Bid</a>
-          </div>
     		</div>
     	</div>
     </div>
@@ -82,13 +81,10 @@
           <div class="modal-body">
             Value:
             <input type="number" min="0.011" id="inputValue" /> ETH<br/>
-            <p></p>
-            Random:
-            <input type="number" step="2" id="inputRandom" /><br/>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary"  data-dismiss="modal" onclick="bid(parseInt($('#inputRandom').val()),parseFloat($('#inputValue').val()));">Send</button>
+            <button type="button" class="btn btn-primary"  data-dismiss="modal" onclick="bid(parseFloat($('#inputValue').val()));">Send</button>
           </div>
         </div>
       </div>
@@ -104,11 +100,13 @@
 
   //array of contract object instances (as a map)
   let contractInst = {};
-  let myBids = [];
+  let myBid = null;
+  let bidingtime = null;
+  let revealtime = null;
 
   //Load all contract addresses and instances
   function loadContractInstances() {
-    let contracts = ["BlindAuction"];
+    let contracts = ["BlindAuction", "AuctionToken"];
     //let contracts = ["Dice", "DiceBattle", "DiceToken", "DiceMarket"];
     let promise_array = [];
     return new Promise((resolve1, reject1) => {
@@ -146,6 +144,7 @@
           chainId = window.ethereum.networkVersion;
           selfAddress = web3.currentProvider.selectedAddress;
           loadContractInstances().then(() => {
+            //setSessionInformation();
             refreshAll();  //trigger refreshing all sections
           }).catch(() => {
             alert("Error loading contracts. (Maybe they are not deployed?)")
@@ -176,12 +175,9 @@
   //UI functions ----------------------------------------------------------
   function refreshBidList() {
     $("#myBidList").html("");
-    $("#myBidList").append("<tr><th>No.</th><th>Value</th><th>Random</th></tr>");
-    let index = myBids.length;
-    for (let i = 0; i < myBids.length; i++) {
-      let value = myBids[i].value;
-      let random = myBids[i].random;
-      $("#myBidList").append("<tr><td>" + i + "</td><td>" + value + "</td><td>" + random + "</td></tr>");
+    $("#myBidList").append("<tr><th>Value</th><th>Random</th></tr>");
+    if (myBid != null && myBid.value != null && myBid.random != null) {
+      $("#myBidList").append("<tr><td>" + myBid.value + "</td><td>" + myBid.random + "</td></tr>");
     }
   }
 
@@ -191,34 +187,68 @@
   }
 
   function refreshAll() {
-    myBids = [];
+    myBid = null;
     refreshBidList();
   }
 
+  function convertSecondstoTime(millseconds) { 
+    dateObj = new Date(millseconds); 
+    hours = dateObj.getUTCHours(); 
+    minutes = dateObj.getUTCMinutes(); 
+    seconds = dateObj.getSeconds(); 
+
+    return timeString = hours.toString().padStart(2, '0') 
+        + ':' + minutes.toString().padStart(2, '0') 
+        + ':' + seconds.toString().padStart(2, '0'); 
+  }
+
   //contract calls in BlindAuction.sol -----
-  function bid(random, value) {
-    //contractInst["BlindAuction"].bid.sendTransaction(random, value, (rsl) => {
-      let index = myBids.length;
-      myBids[index] = {"value": value, "random": random};
-      refreshBidList();
-    //})
-  }
+  function setSessionInformation() {
+    let currentime = new Date().getTime();
+    let bidingtime = contractInst["BlindAuction"].biddingTime;
+    let revealtime = contractInst["BlindAuction"].revealtime;
 
-  function reveal(random, value){
-    let randoms = [];
-    let values = [];
-    for (let i = 0; i < myBids.length; i++) {
-      randoms[i] = myBids[i].random;
-      values[i] = myBids[i].value;
+    if (bidingtime != null && revealtime != null && revealtime > bidingtime) {
+
+      $("#bid_session_close_time").value = convertSecondstoTime(bidingtime);
+      $("#reveal_session_close_time").value = convertSecondstoTime(revealtime);
+
+      if (currentime >= bidingtime && currentime < revealtime) {
+        $("#current_session").value = "Bidding Session";
+      } else if (currentime > revealtime) {
+        $("#current_session").value = "revealing Session";
+      }
+
+      let bid_session_close_timeout = biddingtime - currentime;
+      let reveal_session_close_timeout = revealtime - currentime;
+      if (bid_session_close_timeout > 0) {
+        setTimeout(function() { 
+          $("#current_session").value = "revealing Session";
+        }, bid_session_close_timeout);
+      }
+      if (reveal_session_close_timeout) {
+        setTimeout(function() { 
+          $("#current_session").value = "auction close";
+        }, reveal_session_close_timeout);
+      }
     }
-    //contractInst["BlindAuction"].reveal.sendTransaction(randoms, values, (rsl) => {
-    //})
   }
 
-  function withdraw(diceId){
-    contractInst["BlindAuction"].withdraw.sendTransaction((rsl) => {
-      //efreshSection("my_dices");
-    })
+  function bid(value) {
+    let random = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    //let bidHash = web3.utils.soliditySha3(value, random);
+    //let bidHash = keccak256(abi.encodePacked(value, random));
+    //contractInst["BlindAuction"].bid.sendTransaction(bidHash, (rsl) => {
+      myBid = {"value": value, "random": random};
+      refreshBidList();
+    //});
+  }
+
+  function reveal(){
+    contractInst["AuctionToken"].approve.sendTransaction(contractInst["BlindAuction"].address, myBid.value, (rsl) => {
+      contractInst["BlindAuction"].reveal.sendTransaction(myBid.value, myBid.random, (rsl) => {
+      });
+    });
   }
   </script>
 </html>
