@@ -8,7 +8,6 @@ contract BlindAuction {
     }
 
     IERC20 token;
-    address payable public beneficiary;
 
     uint public biddingTime;
     uint public revealTime;
@@ -35,13 +34,11 @@ contract BlindAuction {
     constructor(
         uint _biddingTime,
         uint _revealTime,
-        IERC20 ercAddress,
-        address payable _beneficiary
+        IERC20 ercAddress
     ) public {
         biddingTime = _biddingTime;
         revealTime = _revealTime;
         token = ercAddress;
-        beneficiary = _beneficiary;
 
         uint currentTime = block.timestamp;
         biddingEnd = currentTime + biddingTime;
@@ -101,14 +98,15 @@ contract BlindAuction {
 
     /// End the auction and send the highest bid
     /// to the beneficiary.
-    function auctionEnd()
+    function auctionEnd(address  _beneficiary)
         public
+        payable
         onlyAfter(revealEnd)
     {
         require(!ended, "Auction hasn't started or had ended");
         emit AuctionEnded(highestBidder, highestBid);
         ended = true;
         // transfer the bid to the beneficiary
-        require(token.transferFrom(_owner, beneficiary, highestBid), "D1");
+        require(token.transferFrom(_owner, _beneficiary, highestBid), "D1");
     }
 }

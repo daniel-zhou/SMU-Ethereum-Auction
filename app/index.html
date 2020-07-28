@@ -107,7 +107,6 @@
   //Load all contract addresses and instances
   function loadContractInstances() {
     let contracts = ["BlindAuction", "AuctionToken"];
-    //let contracts = ["Dice", "DiceBattle", "DiceToken", "DiceMarket"];
     let promise_array = [];
     return new Promise((resolve1, reject1) => {
       contracts.forEach(contractName => {

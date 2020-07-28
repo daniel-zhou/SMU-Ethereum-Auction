@@ -7,6 +7,6 @@ module.exports = function(deployer, networks, accounts) {
   deployer.deploy(AuctionToken, {from: platform}).then((_inst) => {
     auctionToken = _inst;
     // 120 seconds for bidding, and 120 seconds for revealing
-    return deployer.deploy(BlindAuction, 120, 120, auctionToken.address, ,{from: platform});
+    return deployer.deploy(BlindAuction, 120, 120, auctionToken.address, {from: platform});
   })
 };
