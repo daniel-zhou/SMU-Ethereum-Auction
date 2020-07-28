@@ -249,5 +249,15 @@
       });
     });
   }
+
+  // listen to events
+  let transferEvent = contractInst["AuctionToken"].events.Transfer({}, function(error, event) {
+    console.log(event); 
+  }).on('data', function(event) {
+    console.log(event); // same results as the optional callback above
+  }).on('changed', function(event) {
+    // remove event from local database
+  }).on('error', console.error);
+
   </script>
 </html>
