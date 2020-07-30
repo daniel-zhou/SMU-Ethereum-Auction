@@ -9,10 +9,10 @@ contract BlindAuction {
 
     IERC20 token;
 
-    uint public biddingTime;
-    uint public revealTime;
-    uint public biddingEnd;
-    uint public revealEnd;
+    uint public auctionStartTime;
+    uint public bidCloseTime;
+    uint public revealCloseTime;
+
     bool public ended;
 
     mapping(address => Bid) public bids;
@@ -32,18 +32,18 @@ contract BlindAuction {
     modifier onlyAfter(uint _time) {require(now > _time, "Auction session has been closed");_;}
 
     constructor(
-        uint _biddingTime,
-        uint _revealTime,
+        uint _bidSessionSeconds,
+        uint _revealSessionSeconds,
         IERC20 ercAddress
     ) public {
-        biddingTime = _biddingTime;
-        revealTime = _revealTime;
+        //let biddingTime = _biddingTime * 1 minutes;
+        //let revealTime = _revealTime * 1 minutes;
         token = ercAddress;
 
-        uint currentTime = block.timestamp;
-        biddingEnd = currentTime + biddingTime;
-        revealEnd = biddingEnd + revealTime;
-        emit AuctionStarted(currentTime);
+        auctionStartTime = now;
+        bidCloseTime = auctionStartTime + _bidSessionSeconds;
+        revealCloseTime = bidCloseTime + _revealSessionSeconds;
+        emit AuctionStarted(auctionStartTime);
     }
 
     // Place a blinded bid with `_blindedBid` = keccak256(abi.encodePacked(value, random)).
@@ -51,7 +51,7 @@ contract BlindAuction {
     function bid(bytes32 _bidHash)
         public
         payable
-        onlyBefore(biddingEnd)
+        onlyBefore(bidCloseTime)
     {
         bids[msg.sender] = Bid({
             blindedBid: _bidHash
@@ -65,8 +65,8 @@ contract BlindAuction {
         bytes32 _random
     )
         public
-        onlyAfter(biddingEnd)
-        onlyBefore(revealEnd)
+        onlyAfter(bidCloseTime)
+        onlyBefore(revealCloseTime)
     {
         Bid storage bidToValidate = bids[msg.sender];
         if (bidToValidate.blindedBid == keccak256(abi.encodePacked(_value, _random))) {
@@ -86,13 +86,13 @@ contract BlindAuction {
         }
         if (highestBidder != address(0)) {
             // Refund the previously highest bidder.
-            require(token.transferFrom(_owner, highestBidder, highestBid), "D1");
+            require(token.transferFrom(_owner, highestBidder, highestBid), "Refund");
             //token.Transfer(_owner, highestBidder, highestBid);
         }
         highestBid = value;
         highestBidder = bidder;
         // transfer the bid from the current highest bidder
-        require(token.transferFrom(highestBidder, _owner, highestBid), "D1");
+        require(token.transferFrom(highestBidder, _owner, highestBid), "Bid");
         return true;
     }
 
@@ -101,12 +101,12 @@ contract BlindAuction {
     function auctionEnd(address  _beneficiary)
         public
         payable
-        onlyAfter(revealEnd)
+        onlyAfter(revealCloseTime)
     {
         require(!ended, "Auction hasn't started or had ended");
+        // transfer the bid to the beneficiary
+        require(token.transferFrom(_owner, _beneficiary, highestBid), "Complete");
         emit AuctionEnded(highestBidder, highestBid);
         ended = true;
-        // transfer the bid to the beneficiary
-        require(token.transferFrom(_owner, _beneficiary, highestBid), "D1");
     }
 }
