@@ -116,7 +116,7 @@
           </div>
           <div class="modal-body">
             Value:
-            <input type="number" min="0.011" id="inputValue" /> ETH<br/>
+            <input type="number" min="0.011" id="inputValue" /> &nbsp;&nbsp;AUT<br/>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
@@ -166,8 +166,12 @@
   let contractInst = {};
   let myBid = null;
   let myConstracts = {};
-  let bidSessionCloseTime = null;
-  let revealSessionCloseTime = null;
+  let bidSessionDuration = null;
+  let revealSessionDuration = null;
+
+  var clockTimer;
+  var bidSessionTimer;
+  var revealSessionTimer;
 
   //Load all contract addresses and instances
   function loadContractInstances() {
@@ -210,7 +214,7 @@
           selfAddress = web3.currentProvider.selectedAddress;
           loadContractInstances().then(() => {
             getBalance();
-            //setTransferListener();
+            setTransferListener();
             refreshAll();  //trigger refreshing all sections
           }).catch(() => {
             alert("Error loading contracts. (Maybe they are not deployed?)")
@@ -228,6 +232,7 @@
       selfAddress = window.web3.currentProvider.selectedAddress;
       loadContractInstances().then(() => {
         getBalance();
+        setTransferListener();
         refreshAll();  //trigger refreshing all sections
       }).catch(() => {
         alert("Error loading contracts. (Maybe they are not deployed?)")
@@ -244,7 +249,7 @@
     $("#myBidList").html("");
     $("#myBidList").append("<tr><th>Value</th><th>Random</th></tr>");
     if (myBid != null && myBid.value != null && myBid.random != null) {
-      $("#myBidList").append("<tr><td>" + myBid.value + "</td><td>" + myBid.random + "</td></tr>");
+      $("#myBidList").append("<tr><td>" + myBid.value + "&nbsp;&nbsp;AUT</td><td>" + myBid.random + "</td></tr>");
     }
   }
 
@@ -291,16 +296,24 @@
   function startTime() {
     let timeString = getTimeString();
     $("#current_time").text(timeString);
-    var t = setTimeout(startTime, 500);
+    clockTimer = setTimeout(startTime, 500);
   }
-  
-  function checkTime(i) {
-    if (i < 10) {i = "0" + i};  // add zero in front of numbers < 10
-    return i;
+
+  function clearTimers() {
+    if (clockTimer) {
+      clearTimeout(clockTimer);
+    }
+    if (bidSessionTimer) {
+      clearTimeout(bidSessionTimer);
+    }
+    if (revealSessionTimer) {
+      clearTimeout(revealSessionTimer);
+    }
   }
 
   //contract calls in BlindAuction.sol -----
   function setSessionInformation() {
+    clearTimers();
     startTime();
 
     return new Promise((resolve, reject) => {
@@ -321,26 +334,22 @@
             }
             let revealCloseTime = rsl.c[0]; 
             if (bidCloseTime != null && revealCloseTime != null && auctionStartTime != null) {
-              bidSessionCloseTime = bidCloseTime;
-              revealSessionCloseTime = revealCloseTime;
 
               if (bidCloseTime >= auctionStartTime && revealCloseTime >= auctionStartTime && revealCloseTime >= bidCloseTime) {
                 $("#current_session").text("Bidding");
 
                 let bidCloseTimeString = getConvertTimeString(bidCloseTime);
                 let revealCloseTimeString = getConvertTimeString(revealCloseTime);
-                let dtime = getConvertTimeString(auctionStartTime);
-                let ctime = getTimeString();
                 $("#bid_session_close_time").text(bidCloseTimeString);
                 $("#reveal_session_close_time").text(revealCloseTimeString);
 
                 let bidTimeoutMs = (bidCloseTime - auctionStartTime) * 1000;
                 let revealTimeoutMs = (revealCloseTime - auctionStartTime) * 1000;
-                setTimeout(function() { 
+                bidSessionTimer = setTimeout(function() { 
                   $("#current_session").text("Revealing");
                 }, bidTimeoutMs);
 
-                setTimeout(function() { 
+                revealSessionTimer = setTimeout(function() { 
                   $("#current_session").text("Finalising");
                 }, revealTimeoutMs);
               }
@@ -369,6 +378,8 @@
   }
 
   function startSession(bidDuration, revealDuration) {
+    bidSessionDuration = bidDuration;
+    revealSessionDuration = revealDuration;
     return new Promise((resolve, reject) => {
       contractInst["BlindAuction"].auctionStart(bidDuration, revealDuration, (err, rsl) => {
         if (err) {
@@ -381,10 +392,11 @@
   }
 
   function bid(value) {
-    //let random = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    let random = selfAddress.slice(2);
+    let random = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    //let random = selfAddress;
+    //let randomKey = web3.padLeft(random.slice(2), 64);
     let valueHex = web3.toHex(value);
-    let valueKey = valueHex.slice(2);
+    let valueKey = web3.padLeft(valueHex.slice(2), 64);
     let bidHash = web3.sha3(valueKey, {encoding: 'hex'});
     //let bidHash = keccak256(abi.encodePacked(value, random));
     return new Promise((resolve, reject) => {
@@ -392,7 +404,7 @@
         if (err) {
           reject(err);
         } else {
-          myBid = {"value": value, "random": 0};
+          myBid = {"value": value, "random": random};
           $("#hashvalue").text(bidHash);
           refreshBidList();
         }
@@ -410,7 +422,13 @@
           if (err) {
             reject(err);
           }
-          alert("reveal successfully");
+          contractInst["AuctionToken"].balanceOf(selfAddress, (err, rsl) => {
+            if (err) {
+              reject(err);
+            }
+            let bal = rsl.c[0];
+            $("#token_balance").text(bal);
+          });
         });
       });
     });
@@ -418,6 +436,19 @@
 
   function setTransferListener() {
     // listen to events
+    contractInst["AuctionToken"].Transfer(selfAddress, (err, event) => {
+      if (err) {
+        reject(err);
+      }
+      contractInst["AuctionToken"].balanceOf(selfAddress, (err, rsl) => {
+        if (err) {
+          reject(err);
+        } 
+        let bal = rsl.c[0];
+        $("#token_balance").text(bal);
+      });
+    });
+    /*
     contractInst["AuctionToken"].Transfer({}, function(error, event) {
       console.log(event); 
     }).on('data', function(event) {
@@ -427,7 +458,7 @@
       console.log(event); // same results as the optional callback above
     }).on('changed', function(event) {
       // remove event from local database
-    }).on('error', console.error);
+    }).on('error', console.error);*/
   }
 
   function endAuction() {
@@ -435,12 +466,12 @@
       contractInst["BlindAuction"].auctionEnd(selfAddress, (err, rsl) => {
         if (err) {
           reject(err);
-        } else {
-          $("#current_session").text("");
-          $("#current_time").text("");
-          $("#bid_session_close_time").text("");
-          $("#reveal_session_close_time").text("");
         }
+        clearTimers();
+        $("#current_session").text("");
+        $("#current_time").text("");
+        $("#bid_session_close_time").text("");
+        $("#reveal_session_close_time").text("");
       });
     });
   }

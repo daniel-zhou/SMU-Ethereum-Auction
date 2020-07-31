@@ -48,6 +48,7 @@ contract BlindAuction {
         auctionStartTime = now;
         bidCloseTime = auctionStartTime + _bidSessionSeconds;
         revealCloseTime = bidCloseTime + _revealSessionSeconds;
+        ended = false;
         emit AuctionStarted(auctionStartTime);
     }
 
@@ -73,7 +74,7 @@ contract BlindAuction {
         onlyBefore(revealCloseTime)
     {
         Bid storage bidToValidate = bids[msg.sender];
-        bidHashVallue = keccak256(abi.encodePacked(_value, _random));
+        bidHashVallue = keccak256(abi.encodePacked(_value));
         if (bidToValidate.blindedBid == bidHashVallue) {
             // valid revealed bid. place for bidding.
             placeBid(msg.sender, _value);
@@ -108,12 +109,14 @@ contract BlindAuction {
         onlyAfter(revealCloseTime)
     {
         require(!ended, "Auction hasn't started or had ended");
-        auctionStartTime = 0;
-        bidCloseTime = 0;
-        revealCloseTime = 0;
         // transfer the bid to the beneficiary
         require(token.transferFrom(_owner, _beneficiary, highestBid), "Complete");
         emit AuctionEnded(highestBidder, highestBid);
+        auctionStartTime = uint(0);
+        bidCloseTime = uint(0);
+        revealCloseTime = uint(0);
+        highestBid = uint(0);
+        highestBidder = address(0);
         ended = true;
     }
 }
