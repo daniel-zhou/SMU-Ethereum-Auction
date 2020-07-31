@@ -7,6 +7,6 @@ contract AuctionToken is ERC20Mintable {
   string public constant symbol = "AUT";
   uint8 public constant decimals = 18;
 
-  event Transfer(address indexed from, address indexed to, uint tokens);
+  event Transfer(address indexed from, address indexed to, uint value);
 
 }

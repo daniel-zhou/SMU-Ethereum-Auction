@@ -12,7 +12,7 @@ contract BlindAuction {
     uint public auctionStartTime;
     uint public bidCloseTime;
     uint public revealCloseTime;
-
+    bytes32 public bidHashVallue;
     bool public ended;
 
     mapping(address => Bid) public bids;
@@ -32,14 +32,19 @@ contract BlindAuction {
     modifier onlyAfter(uint _time) {require(now > _time, "Auction session has been closed");_;}
 
     constructor(
-        uint _bidSessionSeconds,
-        uint _revealSessionSeconds,
         IERC20 ercAddress
     ) public {
         //let biddingTime = _biddingTime * 1 minutes;
         //let revealTime = _revealTime * 1 minutes;
         token = ercAddress;
+    }
 
+    function auctionStart(
+        uint _bidSessionSeconds,
+        uint _revealSessionSeconds
+    )
+        public
+    {
         auctionStartTime = now;
         bidCloseTime = auctionStartTime + _bidSessionSeconds;
         revealCloseTime = bidCloseTime + _revealSessionSeconds;
@@ -50,7 +55,6 @@ contract BlindAuction {
     // The same address can place one bid. The latest one is valid.
     function bid(bytes32 _bidHash)
         public
-        payable
         onlyBefore(bidCloseTime)
     {
         bids[msg.sender] = Bid({
@@ -69,7 +73,8 @@ contract BlindAuction {
         onlyBefore(revealCloseTime)
     {
         Bid storage bidToValidate = bids[msg.sender];
-        if (bidToValidate.blindedBid == keccak256(abi.encodePacked(_value, _random))) {
+        bidHashVallue = keccak256(abi.encodePacked(_value, _random));
+        if (bidToValidate.blindedBid == bidHashVallue) {
             // valid revealed bid. place for bidding.
             placeBid(msg.sender, _value);
             // clear the bid after being revealed.
@@ -98,12 +103,14 @@ contract BlindAuction {
 
     /// End the auction and send the highest bid
     /// to the beneficiary.
-    function auctionEnd(address  _beneficiary)
+    function auctionEnd(address _beneficiary)
         public
-        payable
         onlyAfter(revealCloseTime)
     {
         require(!ended, "Auction hasn't started or had ended");
+        auctionStartTime = 0;
+        bidCloseTime = 0;
+        revealCloseTime = 0;
         // transfer the bid to the beneficiary
         require(token.transferFrom(_owner, _beneficiary, highestBid), "Complete");
         emit AuctionEnded(highestBidder, highestBid);

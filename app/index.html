@@ -48,6 +48,9 @@
         padding: 8px;
         font-weight: bold;
       }
+      #myBidList td {
+        padding: 8px;
+      }
     </style>
   </head>
 
@@ -59,6 +62,11 @@
       <br/>
       <div class="container-fluid">
         <div class="session_info">
+          <h4>
+          <a href="#" class="btn btn-primary" onclick="startAuctionDiag();">Start Auction</a>&nbsp;&nbsp;&nbsp;
+          <a href="#" class="btn btn-primary" onclick="endAuction();">Close Auction</a>
+          </h4>
+          <br>
           <h4>Current Session:&nbsp;&nbsp;&nbsp;<label id="current_session"></label></h2>
           <table>
             <tr>
@@ -77,7 +85,7 @@
         <br><br>
         <div class="row">
           <div class="col-md-12">
-            <h4>Token Balance:&nbsp;&nbsp;&nbsp;<div id="token_balance"></div></h4>
+            <h4>Token Balance:&nbsp;&nbsp;&nbsp;<label id="token_balance"></label></h4>
             <br><br>
             <h3>My Bid&nbsp;&nbsp;&nbsp;
               <a href="#" class="btn btn-primary" onclick="sendBidDiag();">Send a Bid</a>&nbsp;&nbsp;&nbsp;
@@ -85,6 +93,7 @@
             </h3>
             <table id="myBidList">
             </table>
+            <label id="hashvalue"></label>
             <br><br>
             <h3>Bid Result</h3>
             <div class="card-columns border bg-light" id="bidResult" style="min-height:50px !important;"></div>
@@ -95,7 +104,7 @@
 
     <input type="hidden" id="bidHashId" />
 
-    <!-- Modal - add dice dialog-->
+    <!-- Modal - bid dialog-->
     <div class="modal fade" id="sendBidDiag" tabindex="-1" role="dialog" aria-labelledby="sendBidLabel" aria-hidden="true">
       <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -116,6 +125,33 @@
         </div>
       </div>
     </div>
+  
+    <!-- Modal - start Auction dialog-->
+    <div class="modal fade" id="startAuctionDiag" tabindex="-1" role="dialog" aria-labelledby="sendBidLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="sendBidLabel">Start Auction</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            Bid Session Duration:
+            <input type="number" id="bidSessionDuration" /> Seconds
+            <br>
+            <br>
+            Reveal Session Duration:
+            <input type="number" id="revealSessionDuration" /> Seconds
+            <br>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary"  data-dismiss="modal" onclick="startSession(parseInt($('#bidSessionDuration').val()), parseInt($('#revealSessionDuration').val()));">Start</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
   </body>
 
@@ -129,6 +165,7 @@
   //array of contract object instances (as a map)
   let contractInst = {};
   let myBid = null;
+  let myConstracts = {};
   let bidSessionCloseTime = null;
   let revealSessionCloseTime = null;
 
@@ -142,6 +179,7 @@
           $.getJSON("contracts/"+contractName+".json").then(jsonData => {
             try {
               let addr = jsonData["networks"][chainId]["address"];
+              myConstracts[contractName] = {"abi": jsonData["abi"], "address": addr};
               contractInst[contractName] = web3.eth.contract(jsonData["abi"]).at(addr);
               resolve2();
             } catch (err){
@@ -171,7 +209,8 @@
           chainId = window.ethereum.networkVersion;
           selfAddress = web3.currentProvider.selectedAddress;
           loadContractInstances().then(() => {
-            setSessionInformation();
+            getBalance();
+            //setTransferListener();
             refreshAll();  //trigger refreshing all sections
           }).catch(() => {
             alert("Error loading contracts. (Maybe they are not deployed?)")
@@ -188,7 +227,7 @@
       chainId = window.web3.currentProvider.networkVersion;
       selfAddress = window.web3.currentProvider.selectedAddress;
       loadContractInstances().then(() => {
-        setSessionInformation();
+        getBalance();
         refreshAll();  //trigger refreshing all sections
       }).catch(() => {
         alert("Error loading contracts. (Maybe they are not deployed?)")
@@ -210,6 +249,10 @@
   }
 
   //modal dialog for send a bid
+  function startAuctionDiag() {
+    $('#startAuctionDiag').modal({show:true});
+  }
+
   function sendBidDiag() {
     $('#sendBidDiag').modal({show:true});
   }
@@ -298,7 +341,7 @@
                 }, bidTimeoutMs);
 
                 setTimeout(function() { 
-                  $("#current_session").text("Auction Close");
+                  $("#current_session").text("Finalising");
                 }, revealTimeoutMs);
               }
               resolve();
@@ -312,40 +355,95 @@
     });
   }
 
-  function updateSessionInfo() {
-    if (auctionStartTime >= bidCloseTime && curtime < revealCloseTime) {
-      $("#current_session").value = "Bidding Session";
-    } else if (curtime > revealCloseTime) {
-      $("#current_session").value = "Revealing Session";
-    }
-  }
-
-  function bid(value) {
-    let random = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    let valueKey = value.toString();
-    let bidHash = web3.sha3(valueKey, random, {encoding: 'hex'});
-    //let bidHash = keccak256(abi.encodePacked(value, random));
-    contractInst["BlindAuction"].bid.sendTransaction(bidHash, (rsl) => {
-      myBid = {"value": value, "random": random};
-      refreshBidList();
-    });
-  }
-
-  function reveal(){
-    contractInst["AuctionToken"].approve.sendTransaction(contractInst["BlindAuction"].address, myBid.value, (rsl) => {
-      contractInst["BlindAuction"].reveal.sendTransaction(myBid.value, myBid.random, (rsl) => {
+  function getBalance() {
+    return new Promise((resolve, reject) => {
+      contractInst["AuctionToken"].balanceOf(selfAddress, (err, rsl) => {
+        if (err) {
+          reject(err);
+        } else {
+          let bal = rsl.c[0];
+          $("#token_balance").text(bal);
+        }
       });
     });
   }
 
-  // listen to events
-  let transferEvent = contractInst["AuctionToken"].events.Transfer({}, function(error, event) {
-    console.log(event); 
-  }).on('data', function(event) {
-    console.log(event); // same results as the optional callback above
-  }).on('changed', function(event) {
-    // remove event from local database
-  }).on('error', console.error);
+  function startSession(bidDuration, revealDuration) {
+    return new Promise((resolve, reject) => {
+      contractInst["BlindAuction"].auctionStart(bidDuration, revealDuration, (err, rsl) => {
+        if (err) {
+          reject(err);
+        } else {
+          setSessionInformation();
+        }
+      });
+    });
+  }
+
+  function bid(value) {
+    //let random = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    let random = selfAddress.slice(2);
+    let valueHex = web3.toHex(value);
+    let valueKey = valueHex.slice(2);
+    let bidHash = web3.sha3(valueKey, {encoding: 'hex'});
+    //let bidHash = keccak256(abi.encodePacked(value, random));
+    return new Promise((resolve, reject) => {
+      contractInst["BlindAuction"].bid.sendTransaction(bidHash, (err, rsl) => {
+        if (err) {
+          reject(err);
+        } else {
+          myBid = {"value": value, "random": 0};
+          $("#hashvalue").text(bidHash);
+          refreshBidList();
+        }
+      });
+    });
+  }
+
+  function reveal() {
+    return new Promise((resolve, reject) => {
+      contractInst["AuctionToken"].approve.sendTransaction(contractInst["BlindAuction"].address, myBid.value, (err, rsl) => {
+        if (err) {
+          reject(err);
+        }
+        contractInst["BlindAuction"].reveal.sendTransaction(myBid.value, myBid.random, (err, rsl) => {
+          if (err) {
+            reject(err);
+          }
+          alert("reveal successfully");
+        });
+      });
+    });
+  }
+
+  function setTransferListener() {
+    // listen to events
+    contractInst["AuctionToken"].Transfer({}, function(error, event) {
+      console.log(event); 
+    }).on('data', function(event) {
+      //contractInst["AuctionToken"].balanceOf.sendTransaction(myAccount, (rsl) => {
+        //$("#token_balance").text(rsl.);
+      //});
+      console.log(event); // same results as the optional callback above
+    }).on('changed', function(event) {
+      // remove event from local database
+    }).on('error', console.error);
+  }
+
+  function endAuction() {
+    return new Promise((resolve, reject) => {
+      contractInst["BlindAuction"].auctionEnd(selfAddress, (err, rsl) => {
+        if (err) {
+          reject(err);
+        } else {
+          $("#current_session").text("");
+          $("#current_time").text("");
+          $("#bid_session_close_time").text("");
+          $("#reveal_session_close_time").text("");
+        }
+      });
+    });
+  }
 
   </script>
 </html>
