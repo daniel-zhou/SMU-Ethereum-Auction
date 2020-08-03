@@ -13,13 +13,14 @@ contract BlindAuction {
     uint public bidCloseTime;
     uint public revealCloseTime;
     bytes32 public bidHashVallue;
+    address public beneficiary;
     bool public ended;
 
     mapping(address => Bid) public bids;
 
     address _owner = msg.sender;
-    address public highestBidder;
-    uint public highestBid;
+    address highestBidder;
+    uint highestBid;
 
     event AuctionStarted(uint time);
     event AuctionEnded(address winner, uint highestBid);
@@ -28,15 +29,15 @@ contract BlindAuction {
     // `onlyBefore` is applied to `bid` below:
     /// The new function body is the modifier's body where
     /// `_` is replaced by the old function body.
-    modifier onlyBefore(uint _time) {require(now < _time, "Bid session has been closed");_;}
-    modifier onlyAfter(uint _time) {require(now > _time, "Auction session has been closed");_;}
+    modifier onlyBefore(uint _time) {require(now < _time, "session time point has been passed");_;}
+    modifier onlyAfter(uint _time) {require(now > _time, "session time point has not been reached");_;}
 
     constructor(
-        IERC20 ercAddress
+        IERC20 ercAddress,
+        address _beneficiary
     ) public {
-        //let biddingTime = _biddingTime * 1 minutes;
-        //let revealTime = _revealTime * 1 minutes;
         token = ercAddress;
+        beneficiary = _beneficiary;
     }
 
     function auctionStart(
@@ -45,10 +46,14 @@ contract BlindAuction {
     )
         public
     {
+        require(_owner == msg.sender, "Only deployer can start auction");
+        highestBid = uint(0);
+        highestBidder = address(0);
+        ended = false;
         auctionStartTime = now;
         bidCloseTime = auctionStartTime + _bidSessionSeconds;
         revealCloseTime = bidCloseTime + _revealSessionSeconds;
-        ended = false;
+
         emit AuctionStarted(auctionStartTime);
     }
 
@@ -104,19 +109,32 @@ contract BlindAuction {
 
     /// End the auction and send the highest bid
     /// to the beneficiary.
-    function auctionEnd(address _beneficiary)
+    function auctionEnd()
         public
         onlyAfter(revealCloseTime)
     {
         require(!ended, "Auction hasn't started or had ended");
-        // transfer the bid to the beneficiary
-        require(token.transferFrom(_owner, _beneficiary, highestBid), "Complete");
+        require(_owner == msg.sender, "Only deployer can end auction");
+        //require(token.transferFrom(_owner, beneficiary, highestBid), "failed to pass to beneficiary");
         emit AuctionEnded(highestBidder, highestBid);
-        auctionStartTime = uint(0);
-        bidCloseTime = uint(0);
-        revealCloseTime = uint(0);
-        highestBid = uint(0);
-        highestBidder = address(0);
         ended = true;
+    }
+
+    function getHighestBidder()
+        public
+        onlyAfter(revealCloseTime)
+        view
+        returns (address)
+    {
+        return highestBidder;
+    }
+
+    function getHighestBid()
+        public
+        onlyAfter(revealCloseTime)
+        view
+        returns (uint)
+    {
+        return highestBid;
     }
 }

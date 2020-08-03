@@ -22,7 +22,9 @@ Start the UI inside the `app` folder:
 cd app
 nodejs server.js
 ```
-and open (http://localhost:8080) in your browser.
+and in your browser:
+open (http://localhost:8080/auctioneer.html) for auctioneer app.
+open (http://localhost:8080/bidder.html) for bidder app.
 
 This is a very simple server that only serves static content. It serves the `app` folder, and also the `build/contracts` folder, so that the build artifacts are accessible to the javascript.
 
